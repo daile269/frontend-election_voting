@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { Card, Table, Form, InputGroup, Row, Col } from "react-bootstrap";
+import { Card, Table, Form, Row, Col } from "react-bootstrap";
 import { Link } from "react-router-dom";
-import { FaSearch } from "react-icons/fa";
 
 import { getVotes, getVotesPaginated } from "../../services/VoteService";
 import { getElections } from "../../services/electionService";
@@ -13,8 +12,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 const Votes = () => {
   const [votes, setVotes] = useState([]);
   const [votesTotal, setVotesTotal] = useState([]);
-  const [filteredVotes, setFilteredVotes] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [elections, setElections] = useState([]);
   const [candidates, setCandidates] = useState([]);
   const [users, setUsers] = useState([]);
@@ -24,6 +21,11 @@ const Votes = () => {
   const navigate = useNavigate();
   const location = useLocation(); // Lấy thông tin location từ URL
 
+  useEffect(() => {
+    const electionIdQuery = query.get("electionId");
+    setSelectedElection(electionIdQuery || "");
+  }, [location.search]);
+
   const query = new URLSearchParams(location.search);
   const size = parseInt(query.get("size"), 10) || 8;
   const page = parseInt(query.get("page"), 10) || 1;
@@ -31,13 +33,18 @@ const Votes = () => {
   useEffect(() => {
     setCurrentPage(page);
     const fetchVotes = async () => {
-      const data = await getVotesPaginated(page, size);
-      setVotes(data.listElements);
+      const data = await getVotesPaginated(
+        page,
+        size,
+        selectedElection || null
+      );
+      setVotes(data.content);
       setTotalPages(data.totalPages);
     };
 
     fetchVotes();
-  }, [location.search]);
+  }, [location.search, selectedElection]);
+
   // Paginated
   const handlePageChange = (newPage) => {
     const queryParams = new URLSearchParams(location.search);
@@ -50,6 +57,7 @@ const Votes = () => {
   useEffect(() => {
     const fetchElections = async () => {
       const data = await getElections();
+      console.log(data);
       setElections(data);
     };
     const fetchCandidates = async () => {
@@ -69,25 +77,22 @@ const Votes = () => {
     fetchElections();
     fetchCandidates();
   }, []);
+  const handleElectionChange = (e) => {
+    const value = e.target.value;
+    setSelectedElection(value);
 
-  useEffect(() => {
-    // Filter votes based on search term and selected filters
-    let filtered = [...votes];
+    const queryParams = new URLSearchParams(location.search);
+    queryParams.set("page", 1);
+    queryParams.set("size", size);
 
-    if (searchTerm) {
-      filtered = filtered.filter((vote) =>
-        String(vote.id).toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    if (value) {
+      queryParams.set("electionId", value);
+    } else {
+      queryParams.delete("electionId");
     }
 
-    if (selectedElection) {
-      filtered = filtered.filter(
-        (vote) => vote.electionId === Number(selectedElection)
-      );
-    }
-
-    setFilteredVotes(filtered);
-  }, [searchTerm, selectedElection, votes]);
+    navigate(`${location.pathname}?${queryParams.toString()}`);
+  };
 
   const getElectionTitle = (electionId) => {
     const election = elections.find((e) => e.id === electionId);
@@ -110,22 +115,11 @@ const Votes = () => {
         <Card.Body>
           <Row className="mb-3">
             <Col md={6}>
-              <InputGroup>
-                <InputGroup.Text>
-                  <FaSearch />
-                </InputGroup.Text>
-                <Form.Control
-                  placeholder="Tìm kiếm theo mã phiếu bầu..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </InputGroup>
-            </Col>
-            <Col md={3}>
               <Form.Group>
+                <div className="mb-2">Lọc theo cuộc bỏ phiếu:</div>
                 <Form.Select
                   value={selectedElection}
-                  onChange={(e) => setSelectedElection(e.target.value)}
+                  onChange={handleElectionChange}
                 >
                   <option value="">Tất cả cuộc bỏ phiếu</option>
                   {elections.map((election) => (
@@ -149,7 +143,7 @@ const Votes = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredVotes.map((vote) => (
+              {votes.map((vote) => (
                 <tr key={vote.id}>
                   <td>{vote.id}</td>
                   <td>
@@ -173,7 +167,7 @@ const Votes = () => {
             </tbody>
           </Table>
 
-          {filteredVotes.length === 0 && (
+          {votes.length === 0 && (
             <div className="text-center py-4">
               <p className="text-muted">
                 Không có phiếu bầu trong trang này, hãy thử tìm kiếm với tiêu

@@ -1,16 +1,23 @@
 import axiosInstance from "./axiosInstance";
 
 const API_URL = "http://localhost:8080/api/users";
-const API_URL_PAGINATED = "http://localhost:8080/api/users/paginated";
+const API_URL_PAGINATED = "http://localhost:8080/api/users/filter";
 
 export const getUsers = async () => {
   const response = await axiosInstance.get(API_URL);
   return response.data;
 };
 
-export const getUsersPaginated = async (page, size) => {
+export const getUsersPaginated = async (
+  page,
+  size,
+  fullName,
+  username,
+  email,
+  role
+) => {
   const response = await axiosInstance.get(API_URL_PAGINATED, {
-    params: { page, size },
+    params: { page, size, fullName, username, email, role },
   });
   return response.data;
 };

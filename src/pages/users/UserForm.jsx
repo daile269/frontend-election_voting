@@ -8,7 +8,7 @@ import {
   createUser,
   updateUser,
 } from "../../services/userService";
-import { toast } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 const validationSchema = Yup.object().shape({
   username: Yup.string()
     .required("Tên đăng nhập không được để trống")
@@ -81,7 +81,9 @@ const UserForm = () => {
       }
     } catch (error) {
       console.error("Lỗi khi thêm", error);
-      toast.error("Có lỗi khi thao tác với dữ liệu!", {
+      const message =
+        error.response?.data?.message || "Có lỗi khi thao tác với dữ liệu!";
+      toast.error(message, {
         position: "top-right",
         autoClose: 5000,
       });
@@ -272,8 +274,9 @@ const UserForm = () => {
                     </Form.Group>
                   </Col>
                 </Row>
-                {isEditMode && (
-                  <Row className="mb-3">
+
+                <Row className="mb-3">
+                  {isEditMode && (
                     <Col md={6}>
                       <Form.Group controlId="active">
                         <Form.Label>Trạng thái</Form.Label>
@@ -288,28 +291,28 @@ const UserForm = () => {
                         </Form.Select>
                       </Form.Group>
                     </Col>
-                    <Col md={6}>
-                      <Form.Group controlId="address">
-                        <Form.Label>Giới tính</Form.Label>
-                        <Form.Select
-                          name="gender"
-                          value={values.gender}
-                          onChange={handleChange}
-                          onBlur={handleBlur}
-                          isInvalid={touched.gender && errors.gender}
-                        >
-                          <option value="">Chọn giới tính</option>
-                          <option value="MALE">Nam</option>
-                          <option value="FEMALE">Nữ</option>
-                          <option value="OTHER">Khác</option>
-                        </Form.Select>
-                        <Form.Control.Feedback type="invalid">
-                          {errors.gender}
-                        </Form.Control.Feedback>
-                      </Form.Group>
-                    </Col>
-                  </Row>
-                )}
+                  )}
+                  <Col md={6}>
+                    <Form.Group controlId="address">
+                      <Form.Label>Giới tính</Form.Label>
+                      <Form.Select
+                        name="gender"
+                        value={values.gender}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        isInvalid={touched.gender && errors.gender}
+                      >
+                        <option value="">Chọn giới tính</option>
+                        <option value="MALE">Nam</option>
+                        <option value="FEMALE">Nữ</option>
+                        <option value="OTHER">Khác</option>
+                      </Form.Select>
+                      <Form.Control.Feedback type="invalid">
+                        {errors.gender}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
 
                 {!isEditMode && (
                   <div className="alert alert-info">
@@ -341,6 +344,7 @@ const UserForm = () => {
           </Formik>
         </Card.Body>
       </Card>
+      <ToastContainer />
     </div>
   );
 };

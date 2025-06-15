@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, Button, Table, Badge, Form, InputGroup } from "react-bootstrap";
+import { Card, Button, Table, Badge, Form, Row, Col } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import { FaPlus, FaEdit, FaTrash, FaSearch } from "react-icons/fa";
 import { deleteUser, getUsersPaginated } from "../../services/userService";
@@ -10,8 +10,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 const Users = () => {
   const [users, setUsers] = useState([]);
-  const [filteredUsers, setFilteredUsers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchName, setSearchName] = useState("");
+  const [searchUsername, setSearchUsername] = useState("");
+  const [searchEmail, setSearchEmail] = useState("");
+  const [selectedRole, setSelectedRole] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const { currentUser } = useAuth();
@@ -27,13 +29,20 @@ const Users = () => {
   useEffect(() => {
     setCurrentPage(page);
     const fetchUsers = async () => {
-      const data = await getUsersPaginated(page, size);
-      setUsers(data.listElements);
+      const data = await getUsersPaginated(
+        page,
+        size,
+        searchName,
+        searchUsername,
+        searchEmail,
+        selectedRole
+      );
+      setUsers(data.content);
       setTotalPages(data.totalPages);
     };
 
     fetchUsers();
-  }, [location.search]);
+  }, [location.search, page, size]);
   // Paginated
   const handlePageChange = (newPage) => {
     const queryParams = new URLSearchParams(location.search);
@@ -42,17 +51,6 @@ const Users = () => {
 
     navigate(`${location.pathname}?${queryParams.toString()}`);
   };
-
-  useEffect(() => {
-    // Filter users based on search term
-    const filtered = users.filter(
-      (user) =>
-        user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        user.role.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredUsers(filtered);
-  }, [searchTerm, users]);
 
   const handleShowDeleteModal = (user) => {
     setUserToDelete(user);
@@ -66,12 +64,31 @@ const Users = () => {
 
   const handleDeleteUser = async () => {
     if (userToDelete) {
-      await deleteUser(userToDelete.id);
-      navigate("/users", {
-        state: { message: "Người dùng đã được xóa thành công!" },
-      });
-      handleCloseDeleteModal();
+      try {
+        await deleteUser(userToDelete.id);
+        toast.success("Người dùng đã được xóa thành công!");
+        handleSearch(currentPage);
+      } catch (error) {
+        console.log(error);
+        toast.error("Xóa người dùng thất bại. Vui lòng thử lại!");
+      } finally {
+        handleCloseDeleteModal();
+      }
     }
+  };
+
+  const handleSearch = (pageNumber) => {
+    const queryParams = new URLSearchParams();
+
+    if (searchName) queryParams.set("name", searchName);
+    if (searchUsername) queryParams.set("username", searchUsername);
+    if (searchEmail) queryParams.set("email", searchEmail);
+    if (selectedRole) queryParams.set("role", selectedRole);
+
+    queryParams.set("page", pageNumber);
+    queryParams.set("size", size);
+
+    navigate(`${location.pathname}?${queryParams.toString()}`);
   };
 
   // Toast
@@ -97,16 +114,44 @@ const Users = () => {
 
       <Card className="mb-4">
         <Card.Body>
-          <InputGroup className="mb-3">
-            <InputGroup.Text>
-              <FaSearch />
-            </InputGroup.Text>
-            <Form.Control
-              placeholder="Tìm kiếm theo tên, email hoặc role..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </InputGroup>
+          <Row className="mb-3">
+            <Col md={3}>
+              <Form.Control
+                placeholder="Tên đầy đủ"
+                value={searchName}
+                onChange={(e) => setSearchName(e.target.value)}
+              />
+            </Col>
+            <Col md={3}>
+              <Form.Control
+                placeholder="Tên đăng nhập"
+                value={searchUsername}
+                onChange={(e) => setSearchUsername(e.target.value)}
+              />
+            </Col>
+            <Col md={3}>
+              <Form.Control
+                placeholder="Email"
+                value={searchEmail}
+                onChange={(e) => setSearchEmail(e.target.value)}
+              />
+            </Col>
+            <Col md={2}>
+              <Form.Select
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+              >
+                <option value="">Tất cả vai trò</option>
+                <option value="ADMIN">Người quản trị</option>
+                <option value="USER">Người dùng</option>
+              </Form.Select>
+            </Col>
+            <Col md={1}>
+              <Button variant="primary" onClick={() => handleSearch(1)}>
+                <FaSearch />
+              </Button>
+            </Col>
+          </Row>
 
           <Table hover responsive>
             <thead>
@@ -122,7 +167,7 @@ const Users = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user) => (
+              {users.map((user) => (
                 <tr key={user.id}>
                   <td>
                     <img
@@ -174,7 +219,7 @@ const Users = () => {
             </tbody>
           </Table>
 
-          {filteredUsers.length === 0 && (
+          {users.length === 0 && (
             <div className="text-center py-4">
               <p className="text-muted">Không tìm thấy người dùng</p>
             </div>

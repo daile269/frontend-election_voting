@@ -1,16 +1,16 @@
 import axiosInstance from "./axiosInstance";
 
 const API_URL_GET = "http://localhost:8080/api/elections";
-const API_URL_PAGINATED = "http://localhost:8080/api/elections/paginated";
+const API_URL_PAGINATED = "http://localhost:8080/api/elections/filter";
 
 export const getElections = async () => {
   const response = await axiosInstance.get(API_URL_GET);
   return response.data;
 };
 
-export const getElectionsPaginated = async (page, size) => {
+export const getElectionsPaginated = async (search, status, page, size) => {
   const response = await axiosInstance.get(API_URL_PAGINATED, {
-    params: { page, size },
+    params: { search, status, page, size },
   });
   return response.data;
 };

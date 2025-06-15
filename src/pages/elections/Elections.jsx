@@ -16,37 +16,38 @@ import ActivationNotice from "../../components/untils/ActivationNotice";
 
 const Elections = () => {
   const [elections, setElections] = useState([]);
-  const [filteredElections, setFilteredElections] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [electionToDelete, setElectionToDelete] = useState(null);
   const { isAdmin, currentUser } = useAuth();
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [selectedStatus, setSelectedStatus] = useState("");
+  const [pendingSearchTerm, setPendingSearchTerm] = useState("");
+  const [pendingStatus, setPendingStatus] = useState("");
 
   const navigate = useNavigate();
   const location = useLocation();
 
   const query = new URLSearchParams(location.search);
   const size = parseInt(query.get("size"), 10) || 8;
-  const page = parseInt(query.get("page"), 10) || 1;
 
-  useEffect(
-    () => {
-      setCurrentPage(page);
-      const fetchElections = async () => {
-        const data = await getElectionsPaginated(page, size);
-        setElections(data.listElements);
-        setTotalPages(data.totalPages);
-      };
+  useEffect(() => {
+    const query = new URLSearchParams(location.search);
+    const page = parseInt(query.get("page")) || 1;
+    const search = query.get("search") || "";
+    const status = query.get("status") || "";
 
-      fetchElections();
-    },
-    [location.search],
-    page,
-    size
-  );
+    setPendingSearchTerm(search);
+    setPendingStatus(status);
+    setCurrentPage(page);
+
+    const fetchElections = async () => {
+      const data = await getElectionsPaginated(search, status, page, size);
+      setElections(data.content);
+      setTotalPages(data.totalPages);
+    };
+
+    fetchElections();
+  }, [location.search]);
   // Paginated
   const handlePageChange = (newPage) => {
     const queryParams = new URLSearchParams(location.search);
@@ -55,23 +56,6 @@ const Elections = () => {
 
     navigate(`${location.pathname}?${queryParams.toString()}`);
   };
-
-  useEffect(() => {
-    let filtered = elections;
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter((election) => {
-        const title = election.title?.toLowerCase() || "";
-        return title.includes(term);
-      });
-    }
-    if (selectedStatus) {
-      filtered = filtered.filter(
-        (election) => election.status === selectedStatus
-      );
-    }
-    setFilteredElections(filtered);
-  }, [searchTerm, selectedStatus, elections]);
 
   const handleShowDeleteModal = (election) => {
     setElectionToDelete(election);
@@ -96,7 +80,25 @@ const Elections = () => {
       handleCloseDeleteModal();
     }
   };
+  const handleSearch = () => {
+    const queryParams = new URLSearchParams(location.search);
+    queryParams.set("page", 1);
+    queryParams.set("size", size);
 
+    if (pendingSearchTerm.trim() !== "") {
+      queryParams.set("search", pendingSearchTerm.trim());
+    } else {
+      queryParams.delete("search");
+    }
+
+    if (pendingStatus) {
+      queryParams.set("status", pendingStatus);
+    } else {
+      queryParams.delete("status");
+    }
+
+    navigate(`${location.pathname}?${queryParams.toString()}`);
+  };
   const getStatusBadge = (status) => {
     switch (status) {
       case "ONGOING":
@@ -172,13 +174,13 @@ const Elections = () => {
             </InputGroup.Text>
             <Form.Control
               placeholder="Tìm kiếm cuộc bỏ phiếu..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              value={pendingSearchTerm}
+              onChange={(e) => setPendingSearchTerm(e.target.value)}
             />
             <Form.Group>
               <Form.Select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                value={pendingStatus}
+                onChange={(e) => setPendingStatus(e.target.value)}
               >
                 <option value="">Tất cả các cuộc bỏ phiếu</option>
                 <option value="ONGOING">Đang diễn ra</option>
@@ -187,6 +189,9 @@ const Elections = () => {
                 <option value="CANCELLED">Đã hủy</option>
               </Form.Select>
             </Form.Group>
+            <Button variant="primary" onClick={handleSearch}>
+              Tìm kiếm
+            </Button>
           </InputGroup>
 
           <Table hover responsive>
@@ -202,7 +207,7 @@ const Elections = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredElections.map((election) => (
+              {elections.map((election) => (
                 <tr key={election.id}>
                   <td>{election.title}</td>
                   <td>{formatToVietnameseAMPM(election.startTime)}</td>
@@ -240,7 +245,7 @@ const Elections = () => {
             </tbody>
           </Table>
 
-          {filteredElections.length === 0 && (
+          {elections.length === 0 && (
             <div className="text-center py-4">
               <p className="text-muted">
                 Không tìm thấy cuộc bỏ phiếu nào. Hãy thử tìm kiếm khác hoặc tạo
